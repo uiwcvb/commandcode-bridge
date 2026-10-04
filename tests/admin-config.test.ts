@@ -404,6 +404,103 @@ describe("JSON dashboard configuration", () => {
     await app.close();
   });
 
+  it("deletes a credential without the bridge API key and keeps it deleted", async () => {
+    const file = tempConfigFile({
+      bridgeApiKey: "bridge-secret",
+      credentials: [
+        { id: "alpha", apiKey: "alpha-secret", weight: 1 },
+        { id: "beta", apiKey: "beta-secret", weight: 1 },
+      ],
+    });
+    const app = await createApp({
+      upstream: new FakeCommandCodeClient(),
+      configEnv: { COMMANDCODE_CREDENTIALS_FILE: file },
+      configAuthPaths: [],
+      configOverrides: { logLevel: "silent" },
+    });
+
+    const response = await app.inject({ method: "DELETE", url: "/admin/config/credentials/beta" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().credentials.map((credential: { id: string }) => credential.id)).toEqual([
+      "alpha",
+    ]);
+    expect(response.body).not.toContain("alpha-secret");
+
+    const persisted = JSON.parse(readFileSync(file, "utf8")) as {
+      bridgeApiKey?: string;
+      credentials: Array<{ id: string; apiKey?: string }>;
+    };
+    expect(persisted.bridgeApiKey).toBe("bridge-secret");
+    expect(persisted.credentials).toMatchObject([{ id: "alpha", apiKey: "alpha-secret" }]);
+
+    const getResponse = await app.inject({ method: "GET", url: "/admin/config" });
+    expect(
+      getResponse.json().credentials.map((credential: { id: string }) => credential.id),
+    ).toEqual(["alpha"]);
+
+    const putResponse = await app.inject({
+      method: "PUT",
+      url: "/admin/config",
+      payload: { credentials: [] },
+    });
+    expect(putResponse.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it("deletes an env-sourced credential by saving the remaining keys to the dashboard file", async () => {
+    const configHome = mkdtempSync(join(tmpdir(), "commandcode-bridge-xdg-"));
+    const file = join(configHome, "commandcode-bridge", "credentials.json");
+    const app = await createApp({
+      upstream: new FakeCommandCodeClient(),
+      configEnv: {
+        XDG_CONFIG_HOME: configHome,
+        COMMANDCODE_API_KEYS: "first=first-secret,second=second-secret",
+      },
+      configAuthPaths: [],
+      configOverrides: { bridgeApiKey: "bridge-secret", logLevel: "silent" },
+    });
+
+    const response = await app.inject({ method: "DELETE", url: "/admin/config/credentials/first" });
+
+    expect(response.statusCode).toBe(200);
+    const persisted = JSON.parse(readFileSync(file, "utf8")) as {
+      credentials: Array<{ id: string; apiKey?: string }>;
+    };
+    expect(persisted.credentials).toMatchObject([{ id: "second", apiKey: "second-secret" }]);
+
+    await app.close();
+  });
+
+  it("refuses to delete the last credential or an unknown one", async () => {
+    const file = tempConfigFile({
+      credentials: [{ id: "only", apiKey: "only-secret", weight: 1 }],
+    });
+    const app = await createApp({
+      upstream: new FakeCommandCodeClient(),
+      configEnv: { COMMANDCODE_CREDENTIALS_FILE: file },
+      configAuthPaths: [],
+      configOverrides: { bridgeApiKey: "bridge-secret", logLevel: "silent" },
+    });
+
+    const last = await app.inject({ method: "DELETE", url: "/admin/config/credentials/only" });
+    expect(last.statusCode).toBe(409);
+    expect(last.json().error.code).toBe("last_credential");
+
+    const unknown = await app.inject({
+      method: "DELETE",
+      url: "/admin/config/credentials/missing",
+    });
+    expect(unknown.statusCode).toBe(404);
+
+    const persisted = JSON.parse(readFileSync(file, "utf8")) as {
+      credentials: Array<{ id: string }>;
+    };
+    expect(persisted.credentials.map((credential) => credential.id)).toEqual(["only"]);
+
+    await app.close();
+  });
+
   it("does not preserve credential secrets by position for ambiguous replacement payloads", async () => {
     const file = tempConfigFile({
       routing: { policy: "daily_burn_priority", maxInFlightPerCredential: 4 },

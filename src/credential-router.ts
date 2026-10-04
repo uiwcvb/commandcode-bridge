@@ -309,6 +309,17 @@ export class CommandCodeCredentialRouter {
     return this.states.length;
   }
 
+  /** Drops a credential from the running pool; in-flight requests on it finish normally. */
+  public removeCredential(id: string): boolean {
+    const index = this.states.findIndex((state) => state.credential.id === id);
+    if (index < 0) return false;
+    this.states.splice(index, 1);
+    for (const [sessionKey, pin] of this.sessions) {
+      if (pin.credentialId === id) this.sessions.delete(sessionKey);
+    }
+    return true;
+  }
+
   public get sessionCount(): number {
     return this.sessions.size;
   }

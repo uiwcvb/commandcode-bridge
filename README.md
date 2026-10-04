@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.c-b57920?style=flat-square" alt="Version 1.74.0.c"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.d-b57920?style=flat-square" alt="Version 1.74.0.d"></a>
   <a href="src/model-catalog.ts"><img src="https://img.shields.io/badge/models-85-1f6f78?style=flat-square" alt="85 models"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-20%2B-9f4d2e?style=flat-square" alt="Node.js 20+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-28231f?style=flat-square" alt="MIT License"></a>
@@ -111,17 +111,18 @@ curl -sS http://127.0.0.1:9992/v1/chat/completions \
 
 ### API surface
 
-| Method | Path                             | Behavior                                                                                                                                                                                       |
-| ------ | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/health`                        | Public, secret-free health and runtime summary.                                                                                                                                                |
-| `GET`  | `/dashboard/`                    | Public dashboard (static files) for trusted networks; `/dashboard` redirects to `/dashboard/`.                                                                                                 |
-| `GET`  | `/v1/models`                     | Authenticated when `BRIDGE_API_KEY` is configured; lists available models.                                                                                                                     |
-| `GET`  | `/v1/models/:model`              | Authenticated when configured; retrieves one available model.                                                                                                                                  |
-| `POST` | `/v1/chat/completions`           | Authenticated when configured; streaming or non-streaming chat.                                                                                                                                |
-| `GET`  | `/admin/config`                  | Public redacted dashboard state on the trusted network.                                                                                                                                        |
-| `GET`  | `/admin/commandcode/credentials` | Public redacted diagnostics; `?refresh=true` refreshes billing.                                                                                                                                |
-| `PUT`  | `/admin/config`                  | Requires the current `BRIDGE_API_KEY`; a keyless runtime may bootstrap only over a loopback peer and loopback Host.                                                                            |
-| `POST` | `/admin/restart`                 | Uses the same authentication rule; the pre-restart key remains current until restart completes. Answers `restart_requested: false` when the process is unsupervised and cannot restart itself. |
+| Method   | Path                             | Behavior                                                                                                                                                                                       |
+| -------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`                        | Public, secret-free health and runtime summary.                                                                                                                                                |
+| `GET`    | `/dashboard/`                    | Public dashboard (static files) for trusted networks; `/dashboard` redirects to `/dashboard/`.                                                                                                 |
+| `GET`    | `/v1/models`                     | Authenticated when `BRIDGE_API_KEY` is configured; lists available models.                                                                                                                     |
+| `GET`    | `/v1/models/:model`              | Authenticated when configured; retrieves one available model.                                                                                                                                  |
+| `POST`   | `/v1/chat/completions`           | Authenticated when configured; streaming or non-streaming chat.                                                                                                                                |
+| `GET`    | `/admin/config`                  | Public redacted dashboard state on the trusted network.                                                                                                                                        |
+| `GET`    | `/admin/commandcode/credentials` | Public redacted diagnostics; `?refresh=true` refreshes billing.                                                                                                                                |
+| `PUT`    | `/admin/config`                  | Requires the current `BRIDGE_API_KEY`; a keyless runtime may bootstrap only over a loopback peer and loopback Host.                                                                            |
+| `DELETE` | `/admin/config/credentials/:id`  | Deletes one credential without the `BRIDGE_API_KEY`, applies it to the running bridge at once, and refuses the last credential.                                                                |
+| `POST`   | `/admin/restart`                 | Uses the same authentication rule; the pre-restart key remains current until restart completes. Answers `restart_requested: false` when the process is unsupervised and cannot restart itself. |
 
 ### Model metadata and exact catalog
 
@@ -219,7 +220,7 @@ Each model object includes `id`, `object`, `created`, and provider-derived `owne
 
 ![CommandCode Bridge dashboard overview in the dark yElixir theme](docs/assets/readme/dashboard-overview.png)
 
-Open `http://127.0.0.1:9992/dashboard/` (`/` and `/dashboard` redirect there). The dashboard is three static files in [`dashboard/`](dashboard/): no build step, no framework, and no data of its own. It reads `/health` and `/admin/config` every 5 seconds and writes only through the existing `PUT /admin/config`, `POST /admin/restart`, and `GET /admin/commandcode/credentials?refresh=true`. Its layout follows the kiro-lb operations console; its colours and type are the yelixir.dev identity: warm ink and cream with gold accents in the default dark theme, paper and rust in the light theme, Space Grotesk, DM Sans, Instrument Serif, and JetBrains Mono.
+Open `http://127.0.0.1:9992/dashboard/` (`/` and `/dashboard` redirect there). The dashboard is three static files in [`dashboard/`](dashboard/): no build step, no framework, and no data of its own. It reads `/health` and `/admin/config` every 5 seconds and writes only through `PUT /admin/config`, `DELETE /admin/config/credentials/:id`, `POST /admin/restart`, and `GET /admin/commandcode/credentials?refresh=true`. Its layout follows the kiro-lb operations console; its colours and type are the yelixir.dev identity: warm ink and cream with gold accents in the default dark theme, paper and rust in the light theme, Space Grotesk, DM Sans, Instrument Serif, and JetBrains Mono.
 
 | Tab         | What it shows and edits                                                                                                                                                                                                                                                                               |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -255,7 +256,7 @@ Image inputs are removed for the CLI 1.74.0 text-only model list in both Alpha a
 
 Upgrades from a persisted dashboard catalog preserve each current model's enabled state and all custom models, while refreshing built-in metadata from the 1.74.0 canonical definitions. Retired built-ins, including Ox Alpha and the MiniMax M3/M2.7 Free models, are removed rather than forwarded as unknown upstream models; a retired configured default falls back to `deepseek/deepseek-v4-pro`.
 
-Admin writes from the dashboard use the client API key stored in this browser. On a fresh browser, paste the current key into **Settings → Client API key** and choose **Use this key** before saving or restarting. A runtime with no key can bootstrap only from a real loopback connection whose Host is also loopback.
+Admin writes from the dashboard use the client API key stored in this browser. On a fresh browser, paste the current key into **Settings → Client API key** and choose **Use this key** before saving or restarting. Deleting a credential needs no key: confirm it and the bridge stops using that key at once; the last credential cannot be deleted. A runtime with no key can bootstrap only from a real loopback connection whose Host is also loopback.
 
 The dashboard restart button applies a saved configuration only where the process is supervised. systemd is detected automatically; every other supervisor, including Docker with a restart policy, needs `COMMANDCODE_BRIDGE_RESTART_MODE=exit`, which both shipped Compose files set. Without it the bridge refuses to exit, `POST /admin/restart` reports `restart_requested: false`, and the saved configuration stays pending until the service is restarted by hand.
 

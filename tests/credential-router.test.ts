@@ -559,6 +559,26 @@ describe("CommandCode credential routing", () => {
     expect(entry?.disabledUntil).toBe(0);
   });
 
+  it("removes a credential from the running pool along with its session pins", async () => {
+    const router = new CommandCodeCredentialRouter({
+      credentials: [credential("alpha"), credential("beta")],
+      policy: "round_robin",
+      billingRefreshMs: 300_000,
+      cooldownMs: 60_000,
+      now: () => now,
+    });
+    const pinned = await router.select({ model: "deepseek/deepseek-v4-pro", sessionKey: "chat" });
+    router.release(pinned.id);
+
+    expect(router.removeCredential(pinned.id)).toBe(true);
+    expect(router.removeCredential(pinned.id)).toBe(false);
+
+    expect(router.credentialCount).toBe(1);
+    expect(router.pinnedCredentialId("chat")).toBeUndefined();
+    const next = await router.select({ model: "deepseek/deepseek-v4-pro" });
+    expect(next.id).not.toBe(pinned.id);
+  });
+
   it("does not cool down a credential for a plain 400 failure", () => {
     const router = new CommandCodeCredentialRouter({
       credentials: [credential("alpha")],

@@ -102,13 +102,17 @@
       dayUnit: "일",
       editTitle: "자격증명 편집",
       editDesc:
-        "이름, API key, 사용 여부를 바꿀 수 있습니다. API key를 비워 두면 기존 값을 유지합니다. 변경은 저장 후 재시작해야 적용됩니다.",
+        "이름, API key, 사용 여부를 바꿀 수 있습니다. API key를 비워 두면 기존 값을 유지합니다. 변경은 저장 후 재시작해야 적용되고, 삭제는 확인하면 바로 적용됩니다.",
       addCred: "Key 추가",
       name: "이름",
       apiKey: "API key",
       apiKeyKeep: "비워 두면 기존 key 유지",
       enabled: "사용",
       remove: "삭제",
+      confirmRemove: "{id} 자격증명을 삭제할까요? 바로 적용됩니다.",
+      removed: "{id} 자격증명을 삭제했습니다.",
+      removeFailed: "삭제하지 못했습니다: ",
+      lastCredential: "마지막 자격증명은 삭제할 수 없습니다. 다른 key를 먼저 추가하세요.",
       modelsTitle: "모델 카탈로그",
       modelsDesc:
         "브리지가 /v1/models에 공개하고 요청을 허용할 모델입니다. 기본값 외 모델은 켜야 사용할 수 있습니다.",
@@ -250,13 +254,17 @@
       dayUnit: "d",
       editTitle: "Edit credentials",
       editDesc:
-        "Rename keys, replace API keys, or turn them off. Leave the API key empty to keep the stored one. Changes apply after save and restart.",
+        "Rename keys, replace API keys, or turn them off. Leave the API key empty to keep the stored one. Changes apply after save and restart; deletions apply as soon as you confirm.",
       addCred: "Add key",
       name: "Name",
       apiKey: "API key",
       apiKeyKeep: "Leave empty to keep the stored key",
       enabled: "On",
       remove: "Remove",
+      confirmRemove: "Delete credential {id}? This applies immediately.",
+      removed: "Deleted credential {id}.",
+      removeFailed: "Could not delete: ",
+      lastCredential: "The last credential cannot be deleted. Add another key first.",
       modelsTitle: "Model catalog",
       modelsDesc:
         "Models the bridge lists on /v1/models and accepts requests for. Non-default models must be turned on first.",
@@ -400,13 +408,18 @@
       never: "无",
       dayUnit: "天",
       editTitle: "编辑凭据",
-      editDesc: "可以重命名、替换 API key 或关闭 key。API key 留空则保留原值。保存并重启后生效。",
+      editDesc:
+        "可以重命名、替换 API key 或关闭 key。API key 留空则保留原值。保存并重启后生效；删除确认后立即生效。",
       addCred: "添加 key",
       name: "名称",
       apiKey: "API key",
       apiKeyKeep: "留空则保留原 key",
       enabled: "启用",
       remove: "删除",
+      confirmRemove: "删除凭据 {id}？将立即生效。",
+      removed: "已删除凭据 {id}。",
+      removeFailed: "删除失败：",
+      lastCredential: "无法删除最后一个凭据。请先添加其他 key。",
       modelsTitle: "模型目录",
       modelsDesc: "Bridge 在 /v1/models 中公开并接受请求的模型。非默认模型需要先启用。",
       searchModels: "搜索模型",
@@ -599,6 +612,7 @@
       if (parsed?.error?.code === "duplicate_commandcode_api_key") {
         return t("duplicateKey");
       }
+      if (parsed?.error?.code === "last_credential") return t("lastCredential");
       if (typeof parsed?.error?.message === "string") {
         return parsed.error.message;
       }
@@ -1105,12 +1119,35 @@
       };
     });
     panel.querySelectorAll("[data-del]").forEach((el) => {
-      el.onclick = () => {
-        creds.splice(Number(el.dataset.del), 1);
-        markDirty();
-        renderCredentials();
-      };
+      el.onclick = () => void removeCredential(Number(el.dataset.del));
     });
+  }
+
+  async function removeCredential(index) {
+    const creds = state.config.credentials;
+    const credential = creds[index];
+    if (!credential) return;
+    const serverId = credential.originalId || credential.id;
+    if (!window.confirm(t("confirmRemove").replace("{id}", serverId))) return;
+    if (!credential.apiKeyConfigured || DEMO) {
+      creds.splice(index, 1);
+      if (!DEMO) markDirty();
+      renderCredentials();
+      return;
+    }
+    try {
+      await api(`/admin/config/credentials/${encodeURIComponent(serverId)}`, {
+        method: "DELETE",
+        body: "{}",
+      });
+      const current = state.config.credentials.indexOf(credential);
+      if (current >= 0) state.config.credentials.splice(current, 1);
+      toast(t("removed").replace("{id}", serverId));
+    } catch (error) {
+      toast(t("removeFailed") + errorText(error));
+    } finally {
+      renderAll();
+    }
   }
 
   function renderModels() {
@@ -1538,6 +1575,9 @@
     if (!state.dirty) {
       try {
         state.config = await api("/admin/config");
+        state.config.credentials.forEach((c) => {
+          c.originalId = c.id;
+        });
         state.lastUpdatedAt = Date.now();
       } catch {
         state.online = state.health ? state.online : false;
@@ -1731,7 +1771,7 @@
   function demoHealth() {
     return {
       status: "ok",
-      version: "1.74.0.c",
+      version: "1.74.0.d",
       upstream: "commandcode-alpha-generate",
       endpoint: "127.0.0.1:9992",
       default_model: "deepseek/deepseek-v4-pro",
@@ -1854,7 +1894,7 @@
         }),
       ],
       bridge: {
-        version: "1.74.0.c",
+        version: "1.74.0.d",
         upstream_mode: "auto",
         endpoint: "127.0.0.1:9992",
       },

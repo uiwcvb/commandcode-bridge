@@ -376,6 +376,10 @@ export class CommandCodeClient implements CommandCodeUpstream {
     this.router = createCommandCodeCredentialRouter(config);
   }
 
+  public removeCredential(id: string): boolean {
+    return this.router.removeCredential(id);
+  }
+
   public async getCredentialDiagnostics(
     options: { refresh?: boolean } = {},
   ): Promise<CommandCodeCredentialDiagnostic[]> {

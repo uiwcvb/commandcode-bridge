@@ -443,7 +443,7 @@ Routing behavior:
 
 `GET /v1/models/:model` returns one available model. Known capacity is exposed consistently as `context_window`, `context_length`, and `max_context_length`.
 
-When upgrading a persisted 1.3.1 dashboard catalog, enabled state and custom models are preserved, built-in metadata is refreshed from 1.74.0, and retired built-in IDs are removed instead of being forwarded upstream. Admin writes and restarts require the current `BRIDGE_API_KEY`; only a keyless loopback runtime can bootstrap without one.
+When upgrading a persisted 1.3.1 dashboard catalog, enabled state and custom models are preserved, built-in metadata is refreshed from 1.74.0, and retired built-in IDs are removed instead of being forwarded upstream. Admin writes and restarts require the current `BRIDGE_API_KEY` (deleting a credential does not; it applies immediately and the last credential cannot be deleted); only a keyless loopback runtime can bootstrap without one.
 
 ### Empty visible-content policy
 

@@ -11,8 +11,13 @@ export function isDashboardAdminWrite(request: FastifyRequest): boolean {
   );
 }
 
+export function isCredentialDeleteRequest(request: FastifyRequest): boolean {
+  return request.method === "DELETE" && request.url.startsWith("/admin/config/credentials/");
+}
+
 export function shouldRequireAuth(request: FastifyRequest): boolean {
   if (request.method === "OPTIONS") return false;
+  if (isCredentialDeleteRequest(request)) return false;
   if (request.method === "GET" && request.url.startsWith("/admin/config")) return false;
   if (request.method === "GET" && request.url.startsWith("/admin/commandcode/credentials")) {
     return false;

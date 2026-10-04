@@ -17,6 +17,7 @@ The bridge controls a CommandCode account API key. Any caller who can access it 
 ## Dashboard Write Authentication
 
 - `PUT /admin/config` and `POST /admin/restart` require the current runtime `BRIDGE_API_KEY` whenever one is configured.
+- Exception (owner decision, 1.74.0.d): `DELETE /admin/config/credentials/:id` needs no key, so any client that can reach the bridge can remove a credential (never the last one). It cannot add or replace keys or change other settings. A cross-origin web page cannot send it because a `DELETE` needs a CORS preflight, which the bridge answers only for same-hostname origins; DNS rebinding against a loopback-only bridge is not covered. Keep the bridge on a trusted network.
 - `Origin`, `Referer`, and `Host` are not authentication credentials. CORS checks remain browser controls only.
 - A keyless runtime may bootstrap through the dashboard only when both the TCP peer address and HTTP Host are loopback. This preserves default local installs while blocking LAN and DNS-rebinding takeover.
 - Existing users opening a fresh browser enter the current key once in **Current Admin API Key**. Key rotation continues to authenticate with the old key until restart activates the new key.

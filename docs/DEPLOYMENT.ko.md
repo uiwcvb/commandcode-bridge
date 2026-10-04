@@ -442,7 +442,7 @@ Credential JSON 파일 예시:
 
 `GET /v1/models/:model`은 available model 하나를 반환합니다. 알려진 capacity는 `context_window`, `context_length`, `max_context_length`에 동일하게 노출됩니다.
 
-저장된 1.3.1 dashboard catalog 업그레이드 시 enabled state와 custom model은 보존하고 built-in metadata는 1.74.0 기준으로 갱신하며 retired built-in ID는 upstream으로 전달하지 않습니다. Admin write와 restart는 현재 `BRIDGE_API_KEY`가 필요하고, key 없는 loopback runtime만 인증 없이 bootstrap할 수 있습니다.
+저장된 1.3.1 dashboard catalog 업그레이드 시 enabled state와 custom model은 보존하고 built-in metadata는 1.74.0 기준으로 갱신하며 retired built-in ID는 upstream으로 전달하지 않습니다. Admin write와 restart는 현재 `BRIDGE_API_KEY`가 필요하고(credential 삭제는 예외로 key 없이 바로 적용되며 마지막 credential은 삭제할 수 없음), key 없는 loopback runtime만 인증 없이 bootstrap할 수 있습니다.
 
 ### 빈 visible content 방어 정책
 

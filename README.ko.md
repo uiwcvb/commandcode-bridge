@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.c-b57920?style=flat-square" alt="Version 1.74.0.c"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.d-b57920?style=flat-square" alt="Version 1.74.0.d"></a>
   <a href="src/model-catalog.ts"><img src="https://img.shields.io/badge/models-85-1f6f78?style=flat-square" alt="85 models"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-20%2B-9f4d2e?style=flat-square" alt="Node.js 20+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-28231f?style=flat-square" alt="MIT License"></a>
@@ -111,17 +111,18 @@ curl -sS http://127.0.0.1:9992/v1/chat/completions \
 
 ### API 표면
 
-| Method | Path                             | Behavior                                                                                                                                                   |
-| ------ | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/health`                        | Public secret-free health/runtime summary.                                                                                                                 |
-| `GET`  | `/dashboard/`                    | 신뢰 network용 public dashboard(정적 파일). `/dashboard`는 `/dashboard/`로 redirect.                                                                       |
-| `GET`  | `/v1/models`                     | `BRIDGE_API_KEY` 설정 시 인증; available model 목록.                                                                                                       |
-| `GET`  | `/v1/models/:model`              | 설정 시 인증; 단일 available model 조회.                                                                                                                   |
-| `POST` | `/v1/chat/completions`           | 설정 시 인증; streaming/non-streaming chat.                                                                                                                |
-| `GET`  | `/admin/config`                  | 신뢰 network의 public redacted dashboard state.                                                                                                            |
-| `GET`  | `/admin/commandcode/credentials` | Public redacted diagnostics; `?refresh=true`는 billing refresh.                                                                                            |
-| `PUT`  | `/admin/config`                  | 현재 `BRIDGE_API_KEY` 인증 필요. key 없는 runtime은 peer와 Host가 모두 loopback일 때만 bootstrap.                                                          |
-| `POST` | `/admin/restart`                 | 동일한 인증 규칙 적용. restart가 끝날 때까지 기존 key가 current key. supervise되지 않아 스스로 재시작할 수 없으면 `restart_requested: false`를 반환합니다. |
+| Method   | Path                             | Behavior                                                                                                                                                   |
+| -------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`                        | Public secret-free health/runtime summary.                                                                                                                 |
+| `GET`    | `/dashboard/`                    | 신뢰 network용 public dashboard(정적 파일). `/dashboard`는 `/dashboard/`로 redirect.                                                                       |
+| `GET`    | `/v1/models`                     | `BRIDGE_API_KEY` 설정 시 인증; available model 목록.                                                                                                       |
+| `GET`    | `/v1/models/:model`              | 설정 시 인증; 단일 available model 조회.                                                                                                                   |
+| `POST`   | `/v1/chat/completions`           | 설정 시 인증; streaming/non-streaming chat.                                                                                                                |
+| `GET`    | `/admin/config`                  | 신뢰 network의 public redacted dashboard state.                                                                                                            |
+| `GET`    | `/admin/commandcode/credentials` | Public redacted diagnostics; `?refresh=true`는 billing refresh.                                                                                            |
+| `PUT`    | `/admin/config`                  | 현재 `BRIDGE_API_KEY` 인증 필요. key 없는 runtime은 peer와 Host가 모두 loopback일 때만 bootstrap.                                                          |
+| `DELETE` | `/admin/config/credentials/:id`  | `BRIDGE_API_KEY` 없이 credential 하나를 삭제하고 실행 중인 bridge에 바로 적용. 마지막 credential은 거부.                                                   |
+| `POST`   | `/admin/restart`                 | 동일한 인증 규칙 적용. restart가 끝날 때까지 기존 key가 current key. supervise되지 않아 스스로 재시작할 수 없으면 `restart_requested: false`를 반환합니다. |
 
 ### Model metadata와 정확한 catalog
 
@@ -219,7 +220,7 @@ curl -sS http://127.0.0.1:9992/v1/chat/completions \
 
 ![다크 yElixir 테마의 CommandCode Bridge dashboard 개요](docs/assets/readme/dashboard-overview.png)
 
-`http://127.0.0.1:9992/dashboard/`를 여십시오(`/`와 `/dashboard`는 이 주소로 redirect합니다). Dashboard는 [`dashboard/`](dashboard/)의 정적 파일 3개로 이루어져 있습니다. 빌드 단계나 프레임워크가 없고 자체 데이터도 두지 않습니다. 5초마다 `/health`와 `/admin/config`를 읽고, 쓰기는 기존 `PUT /admin/config`, `POST /admin/restart`, `GET /admin/commandcode/credentials?refresh=true`로만 합니다. 레이아웃은 kiro-lb 운영 콘솔을 따르고, 색과 서체는 yelixir.dev 정체성을 따릅니다. 기본 다크 테마는 따뜻한 잉크·크림에 골드 강조, 라이트 테마는 페이퍼·러스트이며 Space Grotesk, DM Sans, Instrument Serif, JetBrains Mono를 씁니다.
+`http://127.0.0.1:9992/dashboard/`를 여십시오(`/`와 `/dashboard`는 이 주소로 redirect합니다). Dashboard는 [`dashboard/`](dashboard/)의 정적 파일 3개로 이루어져 있습니다. 빌드 단계나 프레임워크가 없고 자체 데이터도 두지 않습니다. 5초마다 `/health`와 `/admin/config`를 읽고, 쓰기는 `PUT /admin/config`, `DELETE /admin/config/credentials/:id`, `POST /admin/restart`, `GET /admin/commandcode/credentials?refresh=true`로만 합니다. 레이아웃은 kiro-lb 운영 콘솔을 따르고, 색과 서체는 yelixir.dev 정체성을 따릅니다. 기본 다크 테마는 따뜻한 잉크·크림에 골드 강조, 라이트 테마는 페이퍼·러스트이며 Space Grotesk, DM Sans, Instrument Serif, JetBrains Mono를 씁니다.
 
 | 탭       | 보여주고 편집하는 것                                                                                                                                                                                                                           |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -255,7 +256,7 @@ Alpha와 Provider 모두 CLI 1.74.0의 텍스트 전용 모델 목록과 별칭�
 
 저장된 dashboard catalog에서 업그레이드하면 현재 model의 enabled state와 모든 custom model은 보존하고, built-in metadata는 1.74.0 canonical 정의로 갱신합니다. Ox Alpha와 MiniMax M3/M2.7 Free를 포함한 retired built-in은 unknown upstream model로 전달하지 않으며, 제거된 default가 설정돼 있으면 `deepseek/deepseek-v4-pro`로 안전하게 fallback합니다.
 
-Dashboard의 관리자 쓰기는 이 브라우저에 저장된 클라이언트 API key를 씁니다. 새 브라우저에서는 저장·재시작 전에 **설정 → 클라이언트 API key**에 현재 key를 붙여넣고 **이 key 사용**을 누르십시오. key 없는 runtime은 실제 loopback 연결이며 Host도 loopback인 경우에만 bootstrap할 수 있습니다.
+Dashboard의 관리자 쓰기는 이 브라우저에 저장된 클라이언트 API key를 씁니다. 새 브라우저에서는 저장·재시작 전에 **설정 → 클라이언트 API key**에 현재 key를 붙여넣고 **이 key 사용**을 누르십시오. credential 삭제에는 key가 필요 없습니다. 확인하면 bridge가 그 key를 바로 쓰지 않으며, 마지막 credential은 삭제할 수 없습니다. key 없는 runtime은 실제 loopback 연결이며 Host도 loopback인 경우에만 bootstrap할 수 있습니다.
 
 Dashboard의 재시작 버튼은 process가 supervise되는 환경에서만 저장한 설정을 적용합니다. systemd는 자동으로 감지하고, restart 정책을 둔 Docker를 포함한 그 밖의 supervisor는 `COMMANDCODE_BRIDGE_RESTART_MODE=exit`가 필요하며 제공되는 두 Compose 파일에 모두 설정돼 있습니다. 설정이 없으면 bridge는 종료를 거부하고 `POST /admin/restart`는 `restart_requested: false`를 반환하며, 저장한 설정은 service를 직접 재시작할 때까지 적용 대기 상태로 남습니다.
 

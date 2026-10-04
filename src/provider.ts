@@ -93,6 +93,10 @@ export class CommandCodeProviderClient {
     this.router = createCommandCodeCredentialRouter(config);
   }
 
+  public removeCredential(id: string): boolean {
+    return this.router.removeCredential(id);
+  }
+
   public async chat(
     body: ProviderChatRequestBody,
     signal?: AbortSignal,

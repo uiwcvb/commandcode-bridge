@@ -144,6 +144,14 @@
 - Regression-first verification observed 10 expected failures before implementation (version, catalog, context, dashboard, and six retired-id cases). Focused config/dashboard/Alpha/Provider/server tests then passed: 122 tests in five files. Full `npm test` passed once: 222 tests in 15 files. LSP diagnostics on all five changed TypeScript files, `npm run typecheck`, `npm run lint`, and `npm run build` passed.
 - Built-artifact HTTP QA used isolated HOME/config/auth, a local unused port, Alpha mode, and a non-routable upstream. The listening log event signaled readiness without polling. `/health` returned `1.49.0.a`, `/v1/models` returned all 68 canonical models (192 entries with aliases) with matching context fields, and an empty chat request returned structured `400 invalid_request`. Both QA processes were stopped. `node dist/index.js --help` still starts the HTTP server rather than printing help; this existing behavior was observed and its process stopped.
 
+## 2026-10-04 (1.74.0.d)
+
+- Released bridge-only version `1.74.0.d` on CommandCode CLI `1.74.0`: deleting a credential from the dashboard no longer needs the bridge API key. Saving a deletion failed with `401 Unauthorized` in any browser without the stored client key, and the Credentials tab gave no hint where to enter it.
+- New `DELETE /admin/config/credentials/:id`, exempt from bridge-key auth by owner decision. It removes the credential from the dashboard file, removes it from the running Alpha and Provider routers (with its session pins) so it stops serving at once, and returns the saved configuration. When the file lists no credentials yet (env or CLI auth keys), it writes the remaining keys to the file so the deletion survives a restart. It refuses an unknown id (404) and the last credential (409 `last_credential`). Other settings, adding keys, and restarts still require the key.
+- The Credentials tab's delete button now asks for confirmation and applies the deletion immediately; unsaved new rows are still removed locally. The tab description says deletions apply on confirm.
+- Security: anyone who can reach the bridge can delete credentials (not add or replace them). Cross-origin pages are stopped by the CORS preflight a `DELETE` needs; DNS rebinding against a loopback-only bridge is not covered. Documented in `docs/SECURITY.md`.
+- Verification: regression-first, 4 expected failures before implementation (router removal, keyless delete persisted and listed while `PUT` still returns 401, env-sourced deletion written to the file, last/unknown refusal). `npm run verify` passed with 311 tests in 16 files. Headless-browser QA against the built bridge with no stored client key: the delete button asked for confirmation, removed `beta` at once with a success toast, the row stayed gone after the 5-second refresh, the file kept `alpha` and `bridgeApiKey`, live requests without a restart used only `alpha`, and deleting the last key showed the localized refusal. The same QA first caught Fastify rejecting the body-less `DELETE` sent with `content-type: application/json`; the dashboard now sends `{}`.
+
 ## 2026-10-04 (1.74.0.c)
 
 - Released bridge-only version `1.74.0.c` on CommandCode CLI `1.74.0`, fixing dashboard credential deletion (and editing) that did not take effect.
@@ -247,7 +255,7 @@
 ## Current status — 2026-10-04
 
 - Branch: `main`, synchronized with `origin/main` when this status audit began.
-- Package: `commandcode-bridge` `1.74.0.c`, Node.js `>=20`, with `commandcode-bridge` and `commandcode-router` executables.
+- Package: `commandcode-bridge` `1.74.0.d`, Node.js `>=20`, with `commandcode-bridge` and `commandcode-router` executables.
 - API surface: authenticated OpenAI-compatible `/v1/models` and `/v1/chat/completions`, health endpoint, and the static `/dashboard/` operations console over same-origin admin configuration.
 - Model surface: 85 statically aligned models (CommandCode CLI 1.74.0) with live Provider API refresh when available.
 - Routing surface: `daily_burn_priority`, `balance_priority`, `round_robin`, and `drain_first`, with per-key model scope, concurrency, cooldown, failover, and retry controls.

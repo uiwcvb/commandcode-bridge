@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.c-b57920?style=flat-square" alt="Version 1.74.0.c"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.d-b57920?style=flat-square" alt="Version 1.74.0.d"></a>
   <a href="src/model-catalog.ts"><img src="https://img.shields.io/badge/models-85-1f6f78?style=flat-square" alt="85 models"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-20%2B-9f4d2e?style=flat-square" alt="Node.js 20+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-28231f?style=flat-square" alt="MIT License"></a>
@@ -111,17 +111,18 @@ curl -sS http://127.0.0.1:9992/v1/chat/completions \
 
 ### API 表面
 
-| Method | Path                             | Behavior                                                                                                                     |
-| ------ | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/health`                        | Public、secret-free health/runtime summary。                                                                                 |
-| `GET`  | `/dashboard/`                    | 可信 network 的 public dashboard（静态文件）；`/dashboard` 重定向到 `/dashboard/`。                                          |
-| `GET`  | `/v1/models`                     | 配置 `BRIDGE_API_KEY` 时认证；列出 available model。                                                                         |
-| `GET`  | `/v1/models/:model`              | 配置时认证；查询一个 available model。                                                                                       |
-| `POST` | `/v1/chat/completions`           | 配置时认证；streaming/non-streaming chat。                                                                                   |
-| `GET`  | `/admin/config`                  | 可信 network 上的 public redacted dashboard state。                                                                          |
-| `GET`  | `/admin/commandcode/credentials` | Public redacted diagnostics；`?refresh=true` 刷新 billing。                                                                  |
-| `PUT`  | `/admin/config`                  | 需要当前 `BRIDGE_API_KEY`；无 key runtime 仅可在 peer 与 Host 都为 loopback 时 bootstrap。                                   |
-| `POST` | `/admin/restart`                 | 使用相同认证规则；restart 完成前旧 key 仍是 current key。进程未被 supervise、无法自行重启时返回 `restart_requested: false`。 |
+| Method   | Path                             | Behavior                                                                                                                     |
+| -------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`                        | Public、secret-free health/runtime summary。                                                                                 |
+| `GET`    | `/dashboard/`                    | 可信 network 的 public dashboard（静态文件）；`/dashboard` 重定向到 `/dashboard/`。                                          |
+| `GET`    | `/v1/models`                     | 配置 `BRIDGE_API_KEY` 时认证；列出 available model。                                                                         |
+| `GET`    | `/v1/models/:model`              | 配置时认证；查询一个 available model。                                                                                       |
+| `POST`   | `/v1/chat/completions`           | 配置时认证；streaming/non-streaming chat。                                                                                   |
+| `GET`    | `/admin/config`                  | 可信 network 上的 public redacted dashboard state。                                                                          |
+| `GET`    | `/admin/commandcode/credentials` | Public redacted diagnostics；`?refresh=true` 刷新 billing。                                                                  |
+| `PUT`    | `/admin/config`                  | 需要当前 `BRIDGE_API_KEY`；无 key runtime 仅可在 peer 与 Host 都为 loopback 时 bootstrap。                                   |
+| `DELETE` | `/admin/config/credentials/:id`  | 无需 `BRIDGE_API_KEY` 删除一个 credential，并立即应用到运行中的 bridge；拒绝删除最后一个 credential。                        |
+| `POST`   | `/admin/restart`                 | 使用相同认证规则；restart 完成前旧 key 仍是 current key。进程未被 supervise、无法自行重启时返回 `restart_requested: false`。 |
 
 ### Model metadata 与准确 catalog
 
@@ -219,7 +220,7 @@ curl -sS http://127.0.0.1:9992/v1/chat/completions \
 
 ![深色 yElixir 主题下的 CommandCode Bridge dashboard 概览](docs/assets/readme/dashboard-overview.png)
 
-打开 `http://127.0.0.1:9992/dashboard/`（`/` 和 `/dashboard` 会重定向到这里）。Dashboard 由 [`dashboard/`](dashboard/) 中的 3 个静态文件组成：没有构建步骤、没有框架，也不保存自己的数据。它每 5 秒读取 `/health` 和 `/admin/config`，写入只通过现有的 `PUT /admin/config`、`POST /admin/restart` 和 `GET /admin/commandcode/credentials?refresh=true`。布局沿用 kiro-lb 运维控制台，颜色与字体沿用 yelixir.dev 的品牌识别：默认深色主题为暖墨色与奶油色配金色强调，浅色主题为纸色与锈红色，字体为 Space Grotesk、DM Sans、Instrument Serif 和 JetBrains Mono。
+打开 `http://127.0.0.1:9992/dashboard/`（`/` 和 `/dashboard` 会重定向到这里）。Dashboard 由 [`dashboard/`](dashboard/) 中的 3 个静态文件组成：没有构建步骤、没有框架，也不保存自己的数据。它每 5 秒读取 `/health` 和 `/admin/config`，写入只通过 `PUT /admin/config`、`DELETE /admin/config/credentials/:id`、`POST /admin/restart` 和 `GET /admin/commandcode/credentials?refresh=true`。布局沿用 kiro-lb 运维控制台，颜色与字体沿用 yelixir.dev 的品牌识别：默认深色主题为暖墨色与奶油色配金色强调，浅色主题为纸色与锈红色，字体为 Space Grotesk、DM Sans、Instrument Serif 和 JetBrains Mono。
 
 | 标签 | 显示与编辑的内容                                                                                                                                                                                                  |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -255,7 +256,7 @@ Alpha 和 Provider 均根据 CLI 1.74.0 的纯文本模型列表移除图片输�
 
 从持久化的 dashboard catalog 升级时，会保留当前 model 的 enabled state 和所有 custom model，并用 1.74.0 canonical 定义刷新 built-in metadata。包括 Ox Alpha 和 MiniMax M3/M2.7 Free 在内的 retired built-in 不会作为 unknown upstream model 转发；若 default 已退役，则安全回退到 `deepseek/deepseek-v4-pro`。
 
-Dashboard 的管理写入使用当前浏览器中保存的客户端 API key。在新浏览器中，保存或重启前请把当前 key 粘贴到 **设置 → 客户端 API key** 并点击 **使用此 key**。无 key runtime 仅在真实 loopback 连接且 Host 也是 loopback 时允许 bootstrap。
+Dashboard 的管理写入使用当前浏览器中保存的客户端 API key。在新浏览器中，保存或重启前请把当前 key 粘贴到 **设置 → 客户端 API key** 并点击 **使用此 key**。删除 credential 不需要 key：确认后 bridge 立即停止使用该 key；最后一个 credential 无法删除。无 key runtime 仅在真实 loopback 连接且 Host 也是 loopback 时允许 bootstrap。
 
 Dashboard 的重启按钮只有在进程被 supervise 时才能应用已保存的配置。systemd 会被自动检测；包括配置了 restart 策略的 Docker 在内的其他 supervisor 需要 `COMMANDCODE_BRIDGE_RESTART_MODE=exit`，随附的两个 Compose 文件均已设置。未设置时 bridge 拒绝退出，`POST /admin/restart` 返回 `restart_requested: false`，已保存的配置会保持待应用状态，直到手动重启服务。
 

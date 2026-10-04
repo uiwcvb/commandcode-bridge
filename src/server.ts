@@ -37,6 +37,7 @@ import { handleProviderChat } from "./provider-chat.js";
 import { CommandCodeProviderClient, probeProviderAccess } from "./provider.js";
 import {
   DEFAULT_ROUTING_CONFIG,
+  readDashboardConfigFile,
   redactedCredentials,
   writeDashboardConfigFile,
   type DashboardConfigUpdate,
@@ -448,7 +449,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     if (!origin) return;
     reply.header("access-control-allow-origin", origin);
     reply.header("vary", "origin");
-    reply.header("access-control-allow-methods", "GET,PUT,POST,OPTIONS");
+    reply.header("access-control-allow-methods", "GET,PUT,POST,DELETE,OPTIONS");
     reply.header("access-control-allow-headers", "authorization,content-type,x-api-key");
   });
   app.options("*", async (request, reply) => {
@@ -575,10 +576,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const diagnostics = await readCredentialDiagnostics(false).catch(() => []);
     // Until restart, show what was saved rather than the running config, so the
     // dashboard's periodic refresh does not bring back a deleted credential.
-    const shown =
-      configDirty && pendingConfig
-        ? { ...pendingConfig, bridgeApiKey: config.bridgeApiKey }
-        : config;
+    const shown = pendingConfig ? { ...pendingConfig, bridgeApiKey: config.bridgeApiKey } : config;
     return reply
       .header("cache-control", "no-store")
       .send(dashboardConfigResponse(shown, configDirty, diagnostics, providerAccessById));
@@ -627,6 +625,65 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     return dashboardConfigResponse(
       { ...savedConfig, bridgeApiKey: config.bridgeApiKey },
       true,
+      [],
+      providerAccessById,
+    );
+  });
+
+  // Deliberately keyless (user decision 2026-10-04): any client that can reach the
+  // bridge may remove a credential. Cross-origin pages are still stopped by the
+  // CORS preflight a DELETE requires. The last credential cannot be removed.
+  app.delete("/admin/config/credentials/:id", async (request, reply) => {
+    if (!config.configFilePath) {
+      return reply
+        .code(400)
+        .send(
+          openAIError(
+            "COMMANDCODE_CREDENTIALS_FILE is required for dashboard edits",
+            "configuration_error",
+            "missing_config_file",
+          ),
+        );
+    }
+    const { id } = request.params as { id: string };
+    const file = readDashboardConfigFile(config.configFilePath);
+    const fileCredentials = (file.credentials ?? []).filter(
+      (credential) => typeof credential.apiKey === "string" && credential.apiKey.length > 0,
+    );
+    // An env- or CLI-sourced pool is not in the file yet: write the remaining
+    // keys there so the deletion survives a restart.
+    const current =
+      fileCredentials.length > 0
+        ? fileCredentials
+        : (pendingConfig ?? config).commandCodeCredentials.map((credential) => ({ ...credential }));
+    if (!current.some((credential) => credential.id === id)) {
+      return reply
+        .code(404)
+        .send(
+          openAIError(`Unknown credential: ${id}`, "invalid_request_error", "credential_not_found"),
+        );
+    }
+    const remaining = current.filter((credential) => credential.id !== id);
+    if (remaining.length === 0) {
+      return reply
+        .code(409)
+        .send(
+          openAIError(
+            "The last credential cannot be deleted; add another key first",
+            "invalid_request_error",
+            "last_credential",
+          ),
+        );
+    }
+    writeDashboardConfigFile(config.configFilePath, { ...file, credentials: remaining });
+    (upstream as { removeCredential?: (credentialId: string) => boolean }).removeCredential?.(id);
+    providerClient.removeCredential(id);
+    pendingConfig = loadBridgeConfig({
+      env: { ...process.env, COMMANDCODE_CREDENTIALS_FILE: config.configFilePath },
+    });
+    return dashboardConfigResponse(
+      { ...pendingConfig, bridgeApiKey: config.bridgeApiKey },
+      configDirty,
       [],
       providerAccessById,
     );
