@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.b-b57920?style=flat-square" alt="Version 1.74.0.b"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-1.74.0.c-b57920?style=flat-square" alt="Version 1.74.0.c"></a>
   <a href="src/model-catalog.ts"><img src="https://img.shields.io/badge/models-85-1f6f78?style=flat-square" alt="85 models"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Node.js-20%2B-9f4d2e?style=flat-square" alt="Node.js 20+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-28231f?style=flat-square" alt="MIT License"></a>
@@ -259,7 +259,7 @@ Dashboard 的管理写入使用当前浏览器中保存的客户端 API key。�
 
 Dashboard 的重启按钮只有在进程被 supervise 时才能应用已保存的配置。systemd 会被自动检测；包括配置了 restart 策略的 Docker 在内的其他 supervisor 需要 `COMMANDCODE_BRIDGE_RESTART_MODE=exit`，随附的两个 Compose 文件均已设置。未设置时 bridge 拒绝退出，`POST /admin/restart` 返回 `restart_requested: false`，已保存的配置会保持待应用状态，直到手动重启服务。
 
-Credential 优先级为 `COMMANDCODE_CREDENTIALS_FILE`、`COMMANDCODE_CREDENTIALS`/`COMMANDCODE_API_KEYS`、`COMMAND_CODE_API_KEY`/`COMMANDCODE_API_KEY`/`CMD_API_KEY`、CLI auth file。核心默认值：`HOST=127.0.0.1`、`PORT=9992`、`COMMANDCODE_UPSTREAM_MODE=auto`、`COMMANDCODE_ROUTING_POLICY=daily_burn_priority`、`COMMANDCODE_MAX_IN_FLIGHT_PER_CREDENTIAL=4`、`COMMANDCODE_CLI_VERSION=1.74.0`、`COMMANDCODE_TIMEOUT_MS=600000`、`COMMANDCODE_RETRY_MAX_ATTEMPTS=5`、`COMMANDCODE_RETRY_BACKOFF_MS=250`、`COMMANDCODE_EMPTY_VISIBLE_RESPONSE_POLICY=error_on_length`。对瞬时上游故障（429、5xx、超时）按指数退避重试，最多 `COMMANDCODE_RETRY_MAX_ATTEMPTS` 次；以 401/402/403 失败的凭据会在本次请求中被跳过并优先使用其他 key，一旦产生可见输出即停止重试。设置后 `BRIDGE_API_KEY` 保护 `/v1/*`；client 可使用 Bearer 或 `x-api-key`。`COMMANDCODE_UPSTREAM_MODE=auto` 在启动时探测 Provider API，套餐允许时（Provider $15/月或更高）使用官方 API；`provider` 强制官方 API；`alpha` 强制所有模型走 legacy `/alpha/generate`。设 `COMMANDCODE_ZDR=true` 会在 Provider API 请求中发送 `x-cmd-zdr: 1`（zero data retention）。用 `chmod 600` 保护 credential JSON。Balance alert 默认关闭。可选 `commandcode-router` 用于多个 bridge host 的 least-in-flight routing。
+Credential 优先级为至少包含一个 credential 时的 dashboard credentials 文件（`COMMANDCODE_CREDENTIALS_FILE`，否则 `$XDG_CONFIG_HOME/commandcode-bridge/credentials.json` 或 `~/.config/commandcode-bridge/credentials.json`）、`COMMANDCODE_CREDENTIALS`/`COMMANDCODE_API_KEYS`、`COMMAND_CODE_API_KEY`/`COMMANDCODE_API_KEY`/`CMD_API_KEY`、CLI auth file。核心默认值：`HOST=127.0.0.1`、`PORT=9992`、`COMMANDCODE_UPSTREAM_MODE=auto`、`COMMANDCODE_ROUTING_POLICY=daily_burn_priority`、`COMMANDCODE_MAX_IN_FLIGHT_PER_CREDENTIAL=4`、`COMMANDCODE_CLI_VERSION=1.74.0`、`COMMANDCODE_TIMEOUT_MS=600000`、`COMMANDCODE_RETRY_MAX_ATTEMPTS=5`、`COMMANDCODE_RETRY_BACKOFF_MS=250`、`COMMANDCODE_EMPTY_VISIBLE_RESPONSE_POLICY=error_on_length`。对瞬时上游故障（429、5xx、超时）按指数退避重试，最多 `COMMANDCODE_RETRY_MAX_ATTEMPTS` 次；以 401/402/403 失败的凭据会在本次请求中被跳过并优先使用其他 key，一旦产生可见输出即停止重试。设置后 `BRIDGE_API_KEY` 保护 `/v1/*`；client 可使用 Bearer 或 `x-api-key`。`COMMANDCODE_UPSTREAM_MODE=auto` 在启动时探测 Provider API，套餐允许时（Provider $15/月或更高）使用官方 API；`provider` 强制官方 API；`alpha` 强制所有模型走 legacy `/alpha/generate`。设 `COMMANDCODE_ZDR=true` 会在 Provider API 请求中发送 `x-cmd-zdr: 1`（zero data retention）。用 `chmod 600` 保护 credential JSON。Balance alert 默认关闭。可选 `commandcode-router` 用于多个 bridge host 的 least-in-flight routing。
 
 ## 工作原理
 

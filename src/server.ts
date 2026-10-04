@@ -207,9 +207,14 @@ function asOpenAIRequest(
 function withExistingCredentialSecrets(
   update: DashboardConfigUpdate,
   config: BridgeConfig,
+  runtimeConfig: BridgeConfig,
 ): DashboardConfigUpdate {
+  // The running process may hold credentials the file does not list yet (an env
+  // or CLI auth key before the first dashboard save), so fall back to its secrets.
   const existingById = new Map(
-    config.commandCodeCredentials.map((credential) => [credential.id, credential.apiKey]),
+    [...runtimeConfig.commandCodeCredentials, ...config.commandCodeCredentials].map(
+      (credential) => [credential.id, credential.apiKey],
+    ),
   );
   const merged: DashboardConfigUpdate = { ...update };
   if (update.credentials) {
@@ -564,12 +569,19 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
   });
 
   let configDirty = false;
+  let pendingConfig: BridgeConfig | undefined;
 
   app.get("/admin/config", async (_request, reply) => {
     const diagnostics = await readCredentialDiagnostics(false).catch(() => []);
+    // Until restart, show what was saved rather than the running config, so the
+    // dashboard's periodic refresh does not bring back a deleted credential.
+    const shown =
+      configDirty && pendingConfig
+        ? { ...pendingConfig, bridgeApiKey: config.bridgeApiKey }
+        : config;
     return reply
       .header("cache-control", "no-store")
-      .send(dashboardConfigResponse(config, configDirty, diagnostics, providerAccessById));
+      .send(dashboardConfigResponse(shown, configDirty, diagnostics, providerAccessById));
   });
 
   app.put("/admin/config", async (request, reply) => {
@@ -590,6 +602,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const update = withExistingCredentialSecrets(
       request.body as DashboardConfigUpdate,
       secretSourceConfig,
+      config,
     );
     if (!update.bridgeApiKey && secretSourceConfig.bridgeApiKey) {
       update.bridgeApiKey = secretSourceConfig.bridgeApiKey;
@@ -610,6 +623,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Fastify
     const savedConfig = loadBridgeConfig({
       env: { ...process.env, COMMANDCODE_CREDENTIALS_FILE: config.configFilePath },
     });
+    pendingConfig = savedConfig;
     return dashboardConfigResponse(
       { ...savedConfig, bridgeApiKey: config.bridgeApiKey },
       true,

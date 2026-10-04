@@ -144,6 +144,15 @@
 - Regression-first verification observed 10 expected failures before implementation (version, catalog, context, dashboard, and six retired-id cases). Focused config/dashboard/Alpha/Provider/server tests then passed: 122 tests in five files. Full `npm test` passed once: 222 tests in 15 files. LSP diagnostics on all five changed TypeScript files, `npm run typecheck`, `npm run lint`, and `npm run build` passed.
 - Built-artifact HTTP QA used isolated HOME/config/auth, a local unused port, Alpha mode, and a non-routable upstream. The listening log event signaled readiness without polling. `/health` returned `1.49.0.a`, `/v1/models` returned all 68 canonical models (192 entries with aliases) with matching context fields, and an empty chat request returned structured `400 invalid_request`. Both QA processes were stopped. `node dist/index.js --help` still starts the HTTP server rather than printing help; this existing behavior was observed and its process stopped.
 
+## 2026-10-04 (1.74.0.c)
+
+- Released bridge-only version `1.74.0.c` on CommandCode CLI `1.74.0`, fixing dashboard credential deletion (and editing) that did not take effect.
+- Cause 1: the dashboard saves credentials to `resolveConfigFilePath()` (`COMMANDCODE_CREDENTIALS_FILE`, else `$XDG_CONFIG_HOME/commandcode-bridge/credentials.json` or `~/.config/commandcode-bridge/credentials.json`), but startup credential loading read that file only when `COMMANDCODE_CREDENTIALS_FILE` was non-empty. `install.sh`, `.env.example`, and `release/env.production.example` leave it empty, so on those installs every dashboard credential edit was saved and then ignored after restart in favour of `COMMANDCODE_API_KEY(S)` or CLI auth. Startup now reads credentials from the same path the dashboard writes.
+- Cause 2: after a save, `GET /admin/config` kept returning the running configuration until restart, so the dashboard's 5-second refresh redrew a just-deleted key. While a restart is pending it now returns the saved configuration (still `dirty: true`, `restart_required: true`).
+- Cause 3: when the file did not yet list an env- or CLI-sourced key (for example `default`), saving kept that row without a secret and the writer dropped it. Secret lookup now also uses the running configuration's credentials.
+- Unchanged by design: a file with no credentials still falls back to `COMMANDCODE_CREDENTIALS`/`COMMANDCODE_API_KEYS`, `COMMANDCODE_API_KEY`, then CLI auth, so deleting the last dashboard key brings back an env/CLI key; remove that key from the env file or auth file instead. Existing installs whose credentials file already lists keys saved earlier from the dashboard will start using those keys after updating.
+- Verification: regression-first, 3 expected failures before the fix (default-path loading, saved list after save, env-key secret on first save) plus a guard for the empty-file fallback. `npm run verify` passed with 307 tests in 16 files. Built-artifact QA with the installer's env (`COMMANDCODE_API_KEY` set, `COMMANDCODE_CREDENTIALS_FILE=""`): deleting `b` from a dashboard file holding `a,b`, adding a key next to the env key, and deleting the env-sourced `default` while keeping a dashboard key each showed the saved list immediately, on the next refresh, and after restart; deleting the last dashboard key fell back to the env key as documented.
+
 ## 2026-10-03 (1.74.0.b)
 
 - Released bridge-only version `1.74.0.b` on CommandCode CLI `1.74.0` with PR #7 (commit `187107e`, merge `278e83a`) and PR #8 (commit `5f5141a`, merge `0eea7eb`) from WhatAHappyPig (`A8Cl233395`).
@@ -235,10 +244,10 @@
 - An independent read-only differential audit of both npm bundles found the Alpha caching work of 1.50.0 to be additive rather than breaking: `params.system` may now be a structured block list with `cache_control`, `promptCache` is an optional top-level field, and one-hour cache-write counts arrive as extra provider metadata. The bridge keeps sending a string system prompt with no `promptCache`, its parsers ignore unknown metadata, and existing `cacheReadTokens`/`cacheWriteTokens` mapping stays correct, so no protocol code changed. Adopting cache blocks or org spend-cap surfacing would be separate feature work. `/alpha/generate` transport, `buildCommandAuthHeaders`, `toWireMessages`/`toWireTools`, the 64,000 default output limit, and the NDJSON stream reader are unchanged.
 - Regression-first verification observed 6 expected catalog/version failures before implementation, then 30 passing focused config tests. The full suite passed once with 226 tests in 15 files, alongside `npm run typecheck`, `npm run lint`, Prettier checks on the changed parser-supported files, `npm run build`, `npm pack --dry-run`, and `git diff --check`.
 
-## Current status — 2026-10-03
+## Current status — 2026-10-04
 
 - Branch: `main`, synchronized with `origin/main` when this status audit began.
-- Package: `commandcode-bridge` `1.74.0.b`, Node.js `>=20`, with `commandcode-bridge` and `commandcode-router` executables.
+- Package: `commandcode-bridge` `1.74.0.c`, Node.js `>=20`, with `commandcode-bridge` and `commandcode-router` executables.
 - API surface: authenticated OpenAI-compatible `/v1/models` and `/v1/chat/completions`, health endpoint, and the static `/dashboard/` operations console over same-origin admin configuration.
 - Model surface: 85 statically aligned models (CommandCode CLI 1.74.0) with live Provider API refresh when available.
 - Routing surface: `daily_burn_priority`, `balance_priority`, `round_robin`, and `drain_first`, with per-key model scope, concurrency, cooldown, failover, and retry controls.

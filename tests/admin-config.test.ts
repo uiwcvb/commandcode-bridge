@@ -304,6 +304,106 @@ describe("JSON dashboard configuration", () => {
     await app.close();
   });
 
+  it("loads dashboard-saved credentials from the default config path when COMMANDCODE_CREDENTIALS_FILE is empty", () => {
+    const configHome = mkdtempSync(join(tmpdir(), "commandcode-bridge-xdg-"));
+    writeDashboardConfigFile(join(configHome, "commandcode-bridge", "credentials.json"), {
+      credentials: [{ id: "alpha", apiKey: "alpha-secret" }],
+    });
+
+    const config = loadBridgeConfig({
+      env: {
+        XDG_CONFIG_HOME: configHome,
+        COMMANDCODE_CREDENTIALS_FILE: "",
+        COMMANDCODE_API_KEY: "env-secret",
+      },
+      authPaths: [],
+    });
+
+    expect(config.commandCodeCredentials.map((credential) => credential.id)).toEqual(["alpha"]);
+  });
+
+  it("falls back to the env key when the dashboard config lists no credentials", () => {
+    const configHome = mkdtempSync(join(tmpdir(), "commandcode-bridge-xdg-"));
+    writeDashboardConfigFile(join(configHome, "commandcode-bridge", "credentials.json"), {
+      credentials: [],
+    });
+
+    const config = loadBridgeConfig({
+      env: { XDG_CONFIG_HOME: configHome, COMMANDCODE_API_KEY: "env-secret" },
+      authPaths: [],
+    });
+
+    expect(config.commandCodeCredentials).toMatchObject([{ id: "default", apiKey: "env-secret" }]);
+  });
+
+  it("serves the saved credential list until restart so a deleted key does not reappear", async () => {
+    const file = tempConfigFile({
+      credentials: [
+        { id: "alpha", apiKey: "alpha-secret", weight: 1 },
+        { id: "beta", apiKey: "beta-secret", weight: 1 },
+      ],
+    });
+    const app = await createApp({
+      upstream: new FakeCommandCodeClient(),
+      configEnv: { COMMANDCODE_CREDENTIALS_FILE: file },
+      configAuthPaths: [],
+      configOverrides: { bridgeApiKey: "bridge-secret", logLevel: "silent" },
+    });
+    const headers = { authorization: "Bearer bridge-secret" };
+
+    const putResponse = await app.inject({
+      method: "PUT",
+      url: "/admin/config",
+      headers,
+      payload: { credentials: [{ id: "alpha", originalId: "alpha", weight: 1, enabled: true }] },
+    });
+    expect(putResponse.statusCode).toBe(200);
+
+    const getResponse = await app.inject({ method: "GET", url: "/admin/config", headers });
+    expect(getResponse.json()).toMatchObject({ dirty: true, restart_required: true });
+    expect(
+      getResponse.json().credentials.map((credential: { id: string }) => credential.id),
+    ).toEqual(["alpha"]);
+    expect(getResponse.body).not.toContain("alpha-secret");
+
+    await app.close();
+  });
+
+  it("keeps the secret of an env-sourced credential when the dashboard first saves it", async () => {
+    const configHome = mkdtempSync(join(tmpdir(), "commandcode-bridge-xdg-"));
+    const file = join(configHome, "commandcode-bridge", "credentials.json");
+    writeDashboardConfigFile(file, { routing: { policy: "daily_burn_priority" } });
+    const app = await createApp({
+      upstream: new FakeCommandCodeClient(),
+      configEnv: { XDG_CONFIG_HOME: configHome, COMMANDCODE_API_KEY: "env-secret" },
+      configAuthPaths: [],
+      configOverrides: { bridgeApiKey: "bridge-secret", logLevel: "silent" },
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/admin/config",
+      headers: { authorization: "Bearer bridge-secret" },
+      payload: {
+        credentials: [
+          { id: "default", originalId: "default", weight: 1, enabled: true },
+          { id: "extra", apiKey: "extra-secret", weight: 1, enabled: true },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const persisted = JSON.parse(readFileSync(file, "utf8")) as {
+      credentials: Array<{ id: string; apiKey?: string }>;
+    };
+    expect(persisted.credentials).toMatchObject([
+      { id: "default", apiKey: "env-secret" },
+      { id: "extra", apiKey: "extra-secret" },
+    ]);
+
+    await app.close();
+  });
+
   it("does not preserve credential secrets by position for ambiguous replacement payloads", async () => {
     const file = tempConfigFile({
       routing: { policy: "daily_burn_priority", maxInFlightPerCredential: 4 },

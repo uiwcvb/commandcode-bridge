@@ -151,8 +151,15 @@ export function loadBridgeConfig(options: LoadBridgeConfigOptions = {}): BridgeC
   const allowedModels = uniq(
     enabledModels.length > 0 ? [...enabledModels, defaultModel] : [DEFAULT_MODEL, FLASH_MODEL],
   );
+  // Read credentials from the same file the dashboard writes, even when
+  // COMMANDCODE_CREDENTIALS_FILE is unset or empty (the installer default).
+  const credentialEnv = configFilePath
+    ? { ...env, COMMANDCODE_CREDENTIALS_FILE: configFilePath }
+    : env;
   const apiKeyOptions =
-    options.authPaths === undefined ? { env } : { env, authPaths: options.authPaths };
+    options.authPaths === undefined
+      ? { env: credentialEnv }
+      : { env: credentialEnv, authPaths: options.authPaths };
   const commandCodeCredentials = normalizeCommandCodeCredentialAllowedModels(
     loadCommandCodeCredentialsFromEnvOrFile(apiKeyOptions),
   );
